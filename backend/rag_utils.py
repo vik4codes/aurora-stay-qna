@@ -7,16 +7,24 @@ def retrieve(query: str, k: int = 2,vectorstore=None) -> list[str]:
     results = vectorstore.similarity_search(query, k=k)
 
     # Return each chunk with its content and metadata
-    return [
+    return [ 
         f"Content:\n{r.page_content}\n\nMetadata:\n{r.metadata}"
         for r in results
     ]
 
 # Define the generation function that prompts the LLM with retrieved context
-def generate(query, retrieved_chunks,model) -> str:
+def generate(query, retrieved_chunks, model) -> str:
+
+    rules = """
+    1. Grounding: Answer the user's query using only the facts explicitly mentioned in the retrieved policy information.
+    2. Strictness: If the retrieved policy documents do not contain enough information to answer the question, state: "The available policy documents do not contain enough information to answer this question."
+    3. No Assumptions: Do not assume, extrapolate, or bring in any outside knowledge or general hotel practices.
+    4. Comprehensiveness: Include any conditions, fees, exclusions, or exemptions mentioned in the retrieved sections that directly relate to the query.
+    5. Conciseness: Keep the answer professional, clear, direct, and focused only on what was asked.
+    """
 
     prompt = f"""
-    You are an AI assistant answering questions about medical insurance policies.
+    You are an AI assistant answering questions about hotel policies.
 
     User Query:
     {query}
@@ -25,18 +33,7 @@ def generate(query, retrieved_chunks,model) -> str:
     {retrieved_chunks}
 
     Rules:
-    1. Use only information explicitly supported by the retrieved policy information.
-    2. Do not use outside knowledge, assumptions, or information not present in the retrieved policy information.
-    3. Include all relevant information needed to answer the query completely.
-    4. Do not omit important conditions, exclusions, limitations, exceptions, or coverage details.
-    5. Focus only on information directly relevant to the user's query.
-    6. Do not include unrelated information from the retrieved policy information.
-    7. Answer the user's specific question directly and ensure the response addresses what was asked.
-    8. Keep the answer concise, clear, and easy to understand.
-    9. Do not invent benefits, exclusions, limits, waiting periods, conditions, or coverage details.
-    10. If the information is insufficient, say:
-        "The available policy documents do not contain enough information to answer this question."
-        If the retrieved information conflicts, clearly mention the conflict.
+    {rules}
 
     Answer:
     """
@@ -59,8 +56,8 @@ def rag(
         temperature=temperature,
         top_p=top_p,
         max_tokens=max_tokens,
-        openai_api_key=os.getenv('OPENAI_API_KEY'),
-        openai_api_base=os.getenv('OPENAI_API_BASE')
+        api_key=os.getenv('OPENAI_API_KEY'),
+        base_url=os.getenv('OPENAI_API_BASE', 'https://api.openai.com/v1')
     )
 
     # Retrieve relevant chunks
